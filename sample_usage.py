@@ -11,6 +11,7 @@ from basic_usage.sketchformer import continuous_embeddings
 import time
 import warnings
 import random
+import tensorflow as tf
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -23,6 +24,7 @@ class Basic_Test:
 
     def __init__(self):
         self.directory = "./sketch_files/" # Directory that includes all the sketches
+        self.out_directory ="./sketch_files/embeddings"
         self.all_sketches = []
 
         for filename in os.listdir(self.directory):
@@ -40,18 +42,21 @@ class Basic_Test:
         sample_no = 2
 
         embeddings = []
-        drawing
-        for sketch in self.all_sketches:
+        pred_class = []
         re_con = []
         for sketch in self.all_sketches:
-            re_con.append(model.get_re_construction(sketch[1]))
-        
+            embedding = model.get_embeddings(sketch[1])
+            embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
+            re_con.append((model.get_re_construction(sketch[1]), sketch[0], sketch[2]))
+            pred_class.append(model.classify(sketch[1]))
+
+        np.savez(self.out_directory,
+                 embeddings=embeddings
+                 )
 
         # visulaizing the reconstruction of the sketches 
         for sketch in re_con:
-            self.visualize(sketch[0])
-
-        embeddings = (model.get_embeddings(self.all_sketches[:, 0:1]), self.all_sketches[:, 1:2], self.all_sketches[:, 2:])
+            self.visualize(sketch[0][0], sketch[2])
 
         """" Calculating distance is omitted from this code since this operation is done on elsewhere in our system
         apple_embedding = embeddings[:N_apple]
@@ -72,16 +77,15 @@ class Basic_Test:
 
         """
 
-        # classify sample sketch
-        pred_class = model.classify(self.all_sketches[:, 0:1])
 
-        for i in range(sample_no):
-            print("Predicted class for a %s sketch: " %self.all_sketches[i, 2:], pred_class[i])
+        for i, sketch in enumerate(self.all_sketches):
+            print("Predicted class for a %s sketch: " % sketch[2], pred_class[i])
 
 
-    def visualize(self, sketch):
+    def visualize(self, sketch, name):
         X = []
         Y = []
+        save_directory = "./sketch_files/reconstructed_images/"
 
         tmp_x, tmp_y = [], []
         sx = sy = 0
@@ -103,7 +107,7 @@ class Basic_Test:
             plt.plot(x, y)
 
         # save the image.
-        # plt.savefig("sample.png")
+        plt.savefig(save_directory + name + ".png")
 
         # show the plot
         plt.show()
