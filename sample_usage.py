@@ -50,7 +50,7 @@ class Basic_Test:
             re_con.append((model.get_re_construction(sketch[1]), sketch[0], sketch[2]))
             pred_class.append(model.classify(sketch[1]))
 
-        np.savez(self.out_directory,
+        np.savez(self.out_directory + "/embeddings.npz",
                  embeddings=embeddings
                  )
 
