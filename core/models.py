@@ -82,7 +82,7 @@ class BaseModel(tf.keras.Model, metaclass=ABCMeta):
         self.config_filepath = self.get_config_filepath(outdir, self.experiment_id)
 
         # setup notifyier. it sends partial results inclusing slow metrics
-        self.notifyier = Notifyier(self.hps['slack_config'])
+        #self.notifyier = Notifyier(self.hps['slack_config'])
 
         # turning off the autograph helps with debugging
         if not self.hps['autograph']:

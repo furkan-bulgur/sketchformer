@@ -4,6 +4,8 @@ Created on Oct 18 2020 15:05
 @author: Moayed Haji Ali mali18@ku.edu.tr
 
 """
+import os
+
 import numpy as np
 from basic_usage.sketchformer import continuous_embeddings
 import time
@@ -20,40 +22,38 @@ import matplotlib.pyplot as plt
 class Basic_Test:
 
     def __init__(self):
-        # prepare sample data from the quickdraw
-        filename = "basic_usage/quickdraw_samples/sketchrnn_apple.npz"
-        self.apples = np.load(filename, encoding='latin1', allow_pickle=True)
-        filename = "basic_usage/quickdraw_samples/sketchrnn_baseball.npz"
-        self.baseball = np.load(filename, encoding='latin1', allow_pickle=True)
+        self.directory = "./sketch_files/" # Directory that includes all the sketches
+        self.all_sketches = []
+
+        for filename in os.listdir(self.directory):
+            if filename.endswith(".npz"):
+                file_name = filename
+                sketch = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
+                key_id = int(sketch["key_id"])
+                sketch = sketch["drawing"]
+                class_name = file_name.split(".")[0]
+                self.all_sketches.append((key_id, sketch, class_name))
 
     def performe_test(self, model):
         print("Performing tests:")
-        # extract sample embedding of N apples, and M baseballs and observe the distances
-        N_apple = N_baseball = 2
+        # extract sample embedding of N samples and observe the distances
+        sample_no = 2
 
-        apple_sketch, baseball_sketch = [], []
-        apple_embedding, baseball_embedding = [], []
-
-        # get random N_apple sketches 
-        for _ in range(N_apple):
-            ind = random.randint(0, len(self.apples['test']) - 1)
-            apple_sketch.append(self.apples['test'][ind])
-
-        # get random N_baseball sketches 
-        for _ in range(N_baseball):
-            ind = random.randint(0, len(self.baseball['test']) - 1)
-            baseball_sketch.append(self.baseball['test'][ind])
-        
-        re_con = model.get_re_construction(np.concatenate((apple_sketch, baseball_sketch)))
+        embeddings = []
+        drawing
+        for sketch in self.all_sketches:
+        re_con = []
+        for sketch in self.all_sketches:
+            re_con.append(model.get_re_construction(sketch[1]))
         
 
         # visulaizing the reconstruction of the sketches 
         for sketch in re_con:
-            self.visualize(sketch)
+            self.visualize(sketch[0])
 
+        embeddings = (model.get_embeddings(self.all_sketches[:, 0:1]), self.all_sketches[:, 1:2], self.all_sketches[:, 2:])
 
-        embeddings = model.get_embeddings(np.concatenate((apple_sketch, baseball_sketch)))
-
+        """" Calculating distance is omitted from this code since this operation is done on elsewhere in our system
         apple_embedding = embeddings[:N_apple]
         baseball_embedding = embeddings[N_apple:]
         for i, apple_emb1 in enumerate(apple_embedding):
@@ -70,15 +70,14 @@ class Basic_Test:
             for j, base_emb in enumerate(baseball_embedding):
                     print("[Apple {} - Baseball {}] embedding vectors norm: ".format(i, j), np.linalg.norm(apple_emb - base_emb))
 
-        # classify sample apple sketch
-        pred_class = model.classify(np.concatenate((apple_sketch, baseball_sketch)))
+        """
 
-        for i in range(N_apple):
-            print("Predicted class for a Apple sketch: ", pred_class[i])
-        
-        for i in range(N_baseball):
-            print("Predicted class for a Baseball sketch: ", pred_class[N_apple + i])
-        # classify sample baseball sketch
+        # classify sample sketch
+        pred_class = model.classify(self.all_sketches[:, 0:1])
+
+        for i in range(sample_no):
+            print("Predicted class for a %s sketch: " %self.all_sketches[i, 2:], pred_class[i])
+
 
     def visualize(self, sketch):
         X = []
@@ -137,4 +136,4 @@ class Basic_Test:
 
 Basic_Test().pre_trained_model_test()
 
-Basic_Test().new_model_test()
+#Basic_Test().new_model_test()
