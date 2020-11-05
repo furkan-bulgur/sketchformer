@@ -16,6 +16,7 @@ import tensorflow as tf
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 # warnings.filterwarnings("ignore")
 
@@ -23,7 +24,7 @@ import matplotlib.pyplot as plt
 class Basic_Test:
 
     def __init__(self):
-        self.directory = "./sketch_files/" # Directory that includes all the sketches
+        self.directory = "./sketch_files/qd_subsample/stroke_groups/" # Directory that includes all the sketches
         self.out_directory ="./sketch_files/embeddings"
         self.all_sketches = []
 
@@ -32,7 +33,10 @@ class Basic_Test:
                 file_name = filename
                 sketch = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
                 key_id = int(sketch["key_id"])
-                sketch = sketch["drawing"]
+                temp = []
+                sketch = sketch["sub_stroke"]
+                temp.append(sketch)
+                sketch = temp
                 class_name = file_name.split(".")[0]
                 self.all_sketches.append((key_id, sketch, class_name))
 
@@ -47,10 +51,10 @@ class Basic_Test:
         for sketch in self.all_sketches:
             embedding = model.get_embeddings(sketch[1])
             embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
-            re_con.append((model.get_re_construction(sketch[1]), sketch[0], sketch[2]))
+            #re_con.append((model.get_re_construction(embedding.numpy()), sketch[0], sketch[2]))
             pred_class.append(model.classify(sketch[1]))
 
-        np.savez(self.out_directory + "/embeddings.npz",
+        np.savez(self.out_directory + "/tok_dict_stroke_groups_embeddings.npz",
                  embeddings=embeddings
                  )
 
@@ -102,7 +106,6 @@ class Basic_Test:
 
         X.append(tmp_x)
         Y.append(tmp_y)
-
         for x, y in zip(X, Y):
             plt.plot(x, y)
 

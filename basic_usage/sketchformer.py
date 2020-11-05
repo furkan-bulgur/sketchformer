@@ -20,9 +20,10 @@ class continuous_embeddings:
     """This class provides basic tools such as extract embeddings or classify a specific sketch.
     """
     SKETCHFORMER_MODEL_NAME = 'sketch-transformer-tf2'
-    PRE_TRAINED_MODEL_ID = "cvpr_tform_cont"
+    PRE_TRAINED_MODEL_ID = "cvpr_tform_tok_dict"
     PRE_TRAINED_OUT_DIR = "basic_usage/pre_trained_model"
     TARGET_DIR = "basic_usage/tmp_data"
+    CONTINUOUS = True
     BATCH_SIZE = 256
     PRE_TRAINED_N_CLASSES = 345
 
@@ -127,7 +128,7 @@ class continuous_embeddings:
 
         # prepare a dataloader
         DataLoader = dataloaders.get_dataloader_by_name('stroke3-distributed')
-        dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=True"), self.TARGET_DIR)
+        dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=False"), self.TARGET_DIR)
         return dataset
 
     def classify(self, sketches):
@@ -183,30 +184,26 @@ class continuous_embeddings:
     
 
     def get_re_construction(self, sketches):
-        """returns the embedding for the given sketches
 
-        Args:
-            sketches (array-like): N sketches in the stroke-3 format
-
-        Returns:
-            array-like: the embeddings for the given sketches
-        """
         # prepare the dataset
+        re_con = []
+        """
         dataset = self._convert_data(sketches)
         all_x, all_y = dataset.get_all_data_from("test")
-        re_con = []
+      
 
         for i in range(0, len(all_x), self.BATCH_SIZE):
             end_idx = i + self.BATCH_SIZE if i + self.BATCH_SIZE < len(all_x) else len(all_x)
             batch_x = all_x[i:end_idx]
-            results = self.model.predict(batch_x)
+            
+        """
+        results = self.model.predict_from_embedding(sketches[0])
+        re_con_out = results['recon']
+        tmp = utils.sketch.predictions_to_sketches(re_con_out)
 
-            re_con_out = results['recon']
-            tmp = utils.sketch.predictions_to_sketches(re_con_out)
-
-            if len(re_con) > 0:
-                re_con = np.concatenate((re_con, tmp))
-            else:
-                re_con = tmp
+        if len(re_con) > 0:
+            re_con = np.concatenate((re_con, tmp))
+        else:
+            re_con = tmp
 
         return re_con
