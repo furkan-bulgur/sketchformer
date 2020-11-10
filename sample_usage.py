@@ -24,43 +24,45 @@ from matplotlib import cm
 class Basic_Test:
 
     def __init__(self):
-        self.directory = "./sketch_files/qd_subsample/stroke_groups/" # Directory that includes all the sketches
+        self.directory = "./sketch_files/glitch_npz_full/" # Directory that includes all the sketches
         self.out_directory ="./sketch_files/embeddings"
         self.all_sketches = []
-
         for filename in os.listdir(self.directory):
             if filename.endswith(".npz"):
                 file_name = filename
                 sketch = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
                 key_id = int(sketch["key_id"])
-                temp = []
-                sketch = sketch["sub_stroke"]
-                temp.append(sketch)
-                sketch = temp
+                # Uncomment for sub stroke embeddings
+                # Uncomment for sub stroke embeddings
+                #temp = []
+                sketch = sketch["drawing"]
+                #temp.append(sketch)
+                #sketch = temp
                 class_name = file_name.split(".")[0]
                 self.all_sketches.append((key_id, sketch, class_name))
+
 
     def performe_test(self, model):
         print("Performing tests:")
         # extract sample embedding of N samples and observe the distances
         sample_no = 2
+        re_con = []
 
         embeddings = []
         pred_class = []
-        re_con = []
+
         for sketch in self.all_sketches:
-            embedding = model.get_embeddings(sketch[1])
-            embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
-            #re_con.append((model.get_re_construction(embedding.numpy()), sketch[0], sketch[2]))
-            pred_class.append(model.classify(sketch[1]))
+           # embedding = model.get_embeddings(sketch[1])
+            #embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
+            re_con.append((model.get_re_construction(sketch[1]), sketch[0], sketch[2]))
+            #pred_class.append(model.classify(sketch[1]))
 
-        np.savez(self.out_directory + "/tok_dict_stroke_groups_embeddings.npz",
-                 embeddings=embeddings
-                 )
 
-        # visulaizing the reconstruction of the sketches 
+        np.savez(self.out_directory + "/glitch_full_cont_embeddings.npz", embeddings=embeddings)
+
+        # visulaizing the reconstruction of the sketches
         for sketch in re_con:
-            self.visualize(sketch[0][0], sketch[2])
+           self.visualize(sketch[0][0], sketch[2])
 
         """" Calculating distance is omitted from this code since this operation is done on elsewhere in our system
         apple_embedding = embeddings[:N_apple]
@@ -81,15 +83,23 @@ class Basic_Test:
 
         """
 
+        #for i, sketch in enumerate(self.all_sketches):
+         #   print("Predicted class for a %s sketch: " % sketch[2], pred_class[i])
 
-        for i, sketch in enumerate(self.all_sketches):
-            print("Predicted class for a %s sketch: " % sketch[2], pred_class[i])
+    def recon_embeddings(self, model, file_name):
+        embeddings = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
+        re_con = []
+        for embedding in embeddings:
+            re_con.append((model.get_recon_from_embed(embedding[0])), embedding[2])
 
+        # visulaizing the reconstruction of the sketches
+        for sketch in re_con:
+            self.visualize(sketch[0][0], sketch[2])
 
     def visualize(self, sketch, name):
         X = []
         Y = []
-        save_directory = "./sketch_files/reconstructed_images/"
+        save_directory = "./sketch_files/images_glitch_full/mean"
 
         tmp_x, tmp_y = [], []
         sx = sy = 0
@@ -111,15 +121,15 @@ class Basic_Test:
 
         # save the image.
         plt.savefig(save_directory + name + ".png")
-
-        # show the plot
-        plt.show()
+        plt.clf()
+        plt.close()
 
     def pre_trained_model_test(self):
         """peforme tests on the pretrained model
         """
         # obtain the pre-trained model
         sketchformer = continuous_embeddings.get_pretrained_model()
+        self.recon_embeddings(sketchformer, "")
         self.performe_test(sketchformer)
     
     def new_model_test(self):
