@@ -6,6 +6,7 @@ Created on Oct 18 2020 15:05
 """
 
 import numpy as np
+import tensorflow as tf
 import os
 import models
 import dataloaders
@@ -20,7 +21,8 @@ class continuous_embeddings:
     """This class provides basic tools such as extract embeddings or classify a specific sketch.
     """
     SKETCHFORMER_MODEL_NAME = 'sketch-transformer-tf2'
-    PRE_TRAINED_MODEL_ID = "cvpr_tform_cont"
+    PRE_TRAINED_MODEL_ID = "cvpr_tform_tok_dict"
+    IS_CONTINUOUS = False
     PRE_TRAINED_OUT_DIR = "basic_usage/pre_trained_model"
     TARGET_DIR = "basic_usage/tmp_data"
     CONTINUOUS = True
@@ -128,7 +130,10 @@ class continuous_embeddings:
 
         # prepare a dataloader
         DataLoader = dataloaders.get_dataloader_by_name('stroke3-distributed')
-        dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=True"), self.TARGET_DIR)
+        if self.IS_CONTINUOUS:
+            dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=True"), self.TARGET_DIR)
+        else:
+            dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=False"), self.TARGET_DIR)
         return dataset
 
     def classify(self, sketches):
@@ -168,21 +173,22 @@ class continuous_embeddings:
         # prepare the dataset
         dataset = self._convert_data(sketches)
         all_x, all_y = dataset.get_all_data_from("test")
-        embeddings = []
+        results = []
 
         for i in range(0, len(all_x), self.BATCH_SIZE):
             end_idx = i + self.BATCH_SIZE if i + self.BATCH_SIZE < len(all_x) else len(all_x)
             batch_x = all_x[i:end_idx]
             print("[extract-embeddings] batch_x shape", np.array(batch_x).shape)
-            results = self.model.predict_class(batch_x)
-            if len(embeddings) > 0:
-                embeddings = np.concatenate((embeddings, results['embedding']))
+            out = self.model.predict(batch_x)
+            if len(results) > 0:
+                results = np.concatenate((results, out))
             else:
-                embeddings = results['embedding']
+                results = out
 
-        return embeddings
+        return results
 
     def get_recon_from_embed(self, embedding):
+        #tlen = tf.reduce_sum(tf.cast(inp_seq[..., -1] != 1, tf.float32), axis=-1)
         results = self.model.predict_from_embedding(embedding)
         return results['recon']
     
@@ -206,8 +212,10 @@ class continuous_embeddings:
             batch_x = all_x[i:end_idx]
             results = self.model.predict(batch_x)
 
-            re_con_out = results['recon']
-            tmp = utils.sketch.predictions_to_sketches(re_con_out)
+            if self.IS_CONTINUOUS:
+                tmp = utils.sketch.predictions_to_sketches(results['recon'])
+            else:
+                tmp = self.model.dataset.tokenizer.decode_list(results['recon'])
 
             if len(re_con) > 0:
                 re_con = np.concatenate((re_con, tmp))

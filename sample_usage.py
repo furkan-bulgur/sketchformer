@@ -24,7 +24,7 @@ from matplotlib import cm
 class Basic_Test:
 
     def __init__(self):
-        self.directory = "./sketch_files/glitch_npz_full/" # Directory that includes all the sketches
+        self.directory = "./sketch_files/small_sample/" # Directory that includes all the sketches
         self.out_directory ="./sketch_files/embeddings"
         self.all_sketches = []
         for filename in os.listdir(self.directory):
@@ -32,7 +32,6 @@ class Basic_Test:
                 file_name = filename
                 sketch = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
                 key_id = int(sketch["key_id"])
-                # Uncomment for sub stroke embeddings
                 # Uncomment for sub stroke embeddings
                 #temp = []
                 sketch = sketch["drawing"]
@@ -52,12 +51,15 @@ class Basic_Test:
         pred_class = []
 
         for sketch in self.all_sketches:
-           # embedding = model.get_embeddings(sketch[1])
-            #embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
-            re_con.append((model.get_re_construction(sketch[1]), sketch[0], sketch[2]))
-            #pred_class.append(model.classify(sketch[1]))
+            results = model.get_embeddings(sketch[1])
+            embedding = results['embedding']
+            embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
+            recon_sketch = model.get_re_construction(sketch[1])
+            re_con.append((recon_sketch, sketch[0], sketch[2]))
+            np.savez("./sketch_files/recon_files/" + str(sketch[2]) + "_recon.npz", drawing=recon_sketch)
+            pred_class.append(model.classify(sketch[1]))
 
-
+        #np.savez("./sketch_files/recon_files/recon_images.npz", drawing=re_con)
         np.savez(self.out_directory + "/glitch_full_cont_embeddings.npz", embeddings=embeddings)
 
         # visulaizing the reconstruction of the sketches
@@ -87,9 +89,10 @@ class Basic_Test:
          #   print("Predicted class for a %s sketch: " % sketch[2], pred_class[i])
 
     def recon_embeddings(self, model, file_name):
-        embeddings = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
+        embeddings = np.load(file_name, allow_pickle=True, encoding="latin1")
         re_con = []
-        for embedding in embeddings:
+        count = 0
+        for embedding in embeddings['embeddings'][1:,...]:
             re_con.append((model.get_recon_from_embed(embedding[0])), embedding[2])
 
         # visulaizing the reconstruction of the sketches
@@ -99,7 +102,7 @@ class Basic_Test:
     def visualize(self, sketch, name):
         X = []
         Y = []
-        save_directory = "./sketch_files/images_glitch_full/mean"
+        save_directory = "./sketch_files/reconstructed_images/tokenized_dict/"
 
         tmp_x, tmp_y = [], []
         sx = sy = 0
@@ -129,12 +132,10 @@ class Basic_Test:
         """
         # obtain the pre-trained model
         sketchformer = continuous_embeddings.get_pretrained_model()
-        self.recon_embeddings(sketchformer, "")
+        #self.recon_embeddings(sketchformer, "./sketch_files/mean_embeddings_glitch_full_tok_dict_embeddings.npz" )
         self.performe_test(sketchformer)
     
     def new_model_test(self):
-        """peforme tests on a new model trained on two classes (Apple, Baseball)
-        """
         # train a new model
         print("Training a new model")
         MODEL_ID = "my_new_model"
