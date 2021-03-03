@@ -5,7 +5,7 @@ Created on Oct 18 2020 15:05
 
 """
 import os
-
+import pickle
 import numpy as np
 from basic_usage.sketchformer import continuous_embeddings
 import time
@@ -30,41 +30,32 @@ class Basic_Test:
         for filename in os.listdir(self.directory):
             if filename.endswith(".npz"):
                 file_name = filename
-                sketch = np.load(self.directory + file_name, allow_pickle=True, encoding="latin1")
-                key_id = int(sketch["key_id"])
-                # Uncomment for sub stroke embeddings
-                #temp = []
-                sketch = sketch["drawing"]
-                #temp.append(sketch)
-                #sketch = temp
-                class_name = file_name.split(".")[0]
-                self.all_sketches.append((key_id, sketch, class_name))
+                with np.load(self.directory + file_name, allow_pickle=True, encoding="latin1") as sketch:
+                    key_id = int(sketch["key_id"])
+                    # Uncomment for sub stroke embeddings
+                    #temp = []
+                    sketch = sketch["drawing"]
+                    #temp.append(sketch)
+                    #sketch = temp
+                    class_name = file_name.split(".")[0]
+                    self.all_sketches.append((key_id, sketch, class_name))
 
 
     def performe_test(self, model):
         print("Performing tests:")
         # extract sample embedding of N samples and observe the distances
-        sample_no = 2
-        re_con = []
-
         embeddings = []
-        pred_class = []
 
         for sketch in self.all_sketches:
             results = model.get_embeddings(sketch[1])
             embedding = results['embedding']
-            embeddings.append((embedding.numpy(), sketch[0], sketch[2]))
             recon_sketch = model.get_re_construction(sketch[1])
-            re_con.append((recon_sketch, sketch[0], sketch[2]))
-            np.savez("./sketch_files/recon_files/" + str(sketch[2]) + "_recon.npz", drawing=recon_sketch)
-            pred_class.append(model.classify(sketch[1]))
+            pred_class = model.classify(sketch[1])
+            embeddings.append((embedding.numpy(), sketch[0], sketch[2], pred_class, recon_sketch))
 
         #np.savez("./sketch_files/recon_files/recon_images.npz", drawing=re_con)
-        np.savez(self.out_directory + "/glitch_full_cont_embeddings.npz", embeddings=embeddings)
+        np.savez(self.out_directory + "/small_sample_embeddings.npz", embeddings=embeddings)
 
-        # visulaizing the reconstruction of the sketches
-        for sketch in re_con:
-           self.visualize(sketch[0][0], sketch[2])
 
         """" Calculating distance is omitted from this code since this operation is done on elsewhere in our system
         apple_embedding = embeddings[:N_apple]
@@ -90,15 +81,22 @@ class Basic_Test:
 
     def recon_embeddings(self, model, file_name):
         embeddings = np.load(file_name, allow_pickle=True, encoding="latin1")
-        re_con = []
-        count = 0
-        for embedding in embeddings['embeddings'][1:,...]:
-            re_con.append((model.get_recon_from_embed(embedding[0])), embedding[2])
+        dictionary_array = embeddings['inter_dict']
+        keys = []
+        for key in dictionary_array[()].keys():
+            keys.append(key)
 
+        re_con = []
+        for j, embedding in enumerate(embeddings['embeddings'][1:,...]):
+            re_con.append((model.get_recon_from_embed(embedding), keys[j]))
+
+        with open(self.out_directory + "/interpolated_recon.pkl", 'wb') as f:
+            pickle.dump(re_con, f)
         # visulaizing the reconstruction of the sketches
+        '''
         for sketch in re_con:
             self.visualize(sketch[0][0], sketch[2])
-
+        '''
     def visualize(self, sketch, name):
         X = []
         Y = []
@@ -132,7 +130,7 @@ class Basic_Test:
         """
         # obtain the pre-trained model
         sketchformer = continuous_embeddings.get_pretrained_model()
-        #self.recon_embeddings(sketchformer, "./sketch_files/mean_embeddings_glitch_full_tok_dict_embeddings.npz" )
+        #self.recon_embeddings(sketchformer, "./sketch_files/interpolated_embed/interp_150_contn.npz" )
         self.performe_test(sketchformer)
     
     def new_model_test(self):

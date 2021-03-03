@@ -25,7 +25,6 @@ class continuous_embeddings:
     IS_CONTINUOUS = False
     PRE_TRAINED_OUT_DIR = "basic_usage/pre_trained_model"
     TARGET_DIR = "basic_usage/tmp_data"
-    CONTINUOUS = True
     BATCH_SIZE = 256
     PRE_TRAINED_N_CLASSES = 345
 
@@ -189,8 +188,12 @@ class continuous_embeddings:
 
     def get_recon_from_embed(self, embedding):
         #tlen = tf.reduce_sum(tf.cast(inp_seq[..., -1] != 1, tf.float32), axis=-1)
-        results = self.model.predict_from_embedding(embedding)
-        return results['recon']
+        results = self.model.predict_from_embedding(embedding, expected_len=None)
+        if self.IS_CONTINUOUS:
+            x = utils.sketch.predictions_to_sketches(results['recon'])
+        else:
+            x = np.array(self.model.dataset.tokenizer.decode_list(results['recon']))
+        return x
     
 
     def get_re_construction(self, sketches):
