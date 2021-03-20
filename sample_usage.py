@@ -26,7 +26,7 @@ class Basic_Test:
     def __init__(self):
         self.directory = "./sketch_files/small_sample/" # Directory that includes all the sketches
         self.out_directory ="./sketch_files/embeddings"
-        self.all_sketches = []
+        """
         for filename in os.listdir(self.directory):
             if filename.endswith(".npz"):
                 file_name = filename
@@ -39,45 +39,29 @@ class Basic_Test:
                     #sketch = temp
                     class_name = file_name.split(".")[0]
                     self.all_sketches.append((key_id, sketch, class_name))
+        """
 
 
-    def performe_test(self, model):
+    def performe_test(self, model, file_list, counter):
         print("Performing tests:")
         # extract sample embedding of N samples and observe the distances
         embeddings = []
+        for filename in file_list:
+            if filename.endswith(".npz"):
+                file_name = filename
+                with np.load(self.directory + file_name, allow_pickle=True, encoding="latin1") as sketch:
+                    key_id = int(sketch["key_id"])
+                    # Uncomment for sub stroke embeddings
+                    #temp = []
+                    sketch = sketch["drawing"]
+                    #temp.append(sketch)
+                    #sketch = temp
+                    class_name = file_name.split(".")[0]
+                    results = model.get_embeddings(sketch[1])
+                    embeddings.append((results['embedding'], key_id, class_name, results['pred'], results['recon'][0]))
+        np.savez(self.out_directory + "/small_sample_embeddings_{}.npz".format(counter), embeddings=embeddings)
 
-        for sketch in self.all_sketches:
-            results = model.get_embeddings(sketch[1])
-            embedding = results['embedding']
-            recon_sketch = model.get_re_construction(sketch[1])
-            pred_class = model.classify(sketch[1])
-            embeddings.append((embedding.numpy(), sketch[0], sketch[2], pred_class, recon_sketch))
 
-        #np.savez("./sketch_files/recon_files/recon_images.npz", drawing=re_con)
-        np.savez(self.out_directory + "/small_sample_embeddings.npz", embeddings=embeddings)
-
-
-        """" Calculating distance is omitted from this code since this operation is done on elsewhere in our system
-        apple_embedding = embeddings[:N_apple]
-        baseball_embedding = embeddings[N_apple:]
-        for i, apple_emb1 in enumerate(apple_embedding):
-            for j, apple_emb2 in enumerate(apple_embedding):
-                if i > j:
-                    print("[Apple {} - Apple {}] embedding vectors norm: ".format(i, j), np.linalg.norm(apple_emb1 - apple_emb2))
-
-        for i, base_emb1 in enumerate(baseball_embedding):
-            for j, base_emb2 in enumerate(baseball_embedding):
-                if i > j:
-                    print("[Baseball {} - Baseball {}] embedding vectors norm: ".format(i, j), np.linalg.norm(base_emb1 - base_emb2))
-
-        for i, apple_emb in enumerate(apple_embedding):
-            for j, base_emb in enumerate(baseball_embedding):
-                    print("[Apple {} - Baseball {}] embedding vectors norm: ".format(i, j), np.linalg.norm(apple_emb - base_emb))
-
-        """
-
-        #for i, sketch in enumerate(self.all_sketches):
-         #   print("Predicted class for a %s sketch: " % sketch[2], pred_class[i])
 
     def recon_embeddings(self, model, file_name):
         embeddings = np.load(file_name, allow_pickle=True, encoding="latin1")
@@ -97,33 +81,6 @@ class Basic_Test:
         for sketch in re_con:
             self.visualize(sketch[0][0], sketch[2])
         '''
-    def visualize(self, sketch, name):
-        X = []
-        Y = []
-        save_directory = "./sketch_files/reconstructed_images/tokenized_dict/"
-
-        tmp_x, tmp_y = [], []
-        sx = sy = 0
-        for p in sketch:
-            sx += p[0]
-            sy += p[1]
-            if p[2] == 1:
-                X.append(tmp_x)
-                Y.append(tmp_y)
-                tmp_x, tmp_y = [], []
-            else:
-                tmp_x.append(sx)
-                tmp_y.append(-sy)
-
-        X.append(tmp_x)
-        Y.append(tmp_y)
-        for x, y in zip(X, Y):
-            plt.plot(x, y)
-
-        # save the image.
-        plt.savefig(save_directory + name + ".png")
-        plt.clf()
-        plt.close()
 
     def pre_trained_model_test(self):
         """peforme tests on the pretrained model

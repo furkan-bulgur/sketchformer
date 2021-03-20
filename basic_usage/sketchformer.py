@@ -135,30 +135,7 @@ class continuous_embeddings:
             dataset = DataLoader(DataLoader.default_hparams().parse("use_continuous_data=False"), self.TARGET_DIR)
         return dataset
 
-    def classify(self, sketches):
-        """return the predicted classes for the given array of sketches
 
-        Args:
-            sketches (array-like): N sketches in the stroke-3 format
-
-        Returns:
-            array-like: the predicted classes for the given sketches
-        """
-        # prepare the dataset
-        dataset = self._convert_data(sketches)
-        all_x, all_y = dataset.get_all_data_from("test")
-        pred = np.array([])
-
-        for i in range(0, len(all_x), self.BATCH_SIZE):
-            end_idx = i + self.BATCH_SIZE if i + self.BATCH_SIZE < len(all_x) else len(all_x)
-            batch_x = all_x[i:end_idx]
-            print("[extract-embeddings] batch_x shape", np.array(batch_x).shape)
-            results = self.model.predict_class(batch_x)
-            pred = np.concatenate((pred, results['class']), axis=None)
-        
-        # convert prediction to classes
-        pred = [self.class_labels[int(x)] for x in pred]
-        return pred
 
     def get_embeddings(self, sketches):
         """returns the embedding for the given sketches
@@ -172,17 +149,24 @@ class continuous_embeddings:
         # prepare the dataset
         dataset = self._convert_data(sketches)
         all_x, all_y = dataset.get_all_data_from("test")
-        results = []
+        results = dict()
 
         for i in range(0, len(all_x), self.BATCH_SIZE):
             end_idx = i + self.BATCH_SIZE if i + self.BATCH_SIZE < len(all_x) else len(all_x)
             batch_x = all_x[i:end_idx]
             print("[extract-embeddings] batch_x shape", np.array(batch_x).shape)
             out = self.model.predict(batch_x)
-            if len(results) > 0:
-                results = np.concatenate((results, out))
+            # Get the embeddings
+            results['embedding'] = out['embedding'].numpy()
+            # Get reconstructed sketch
+            if self.IS_CONTINUOUS:
+                tmp = utils.sketch.predictions_to_sketches(out['recon'])
             else:
-                results = out
+                tmp = self.model.dataset.tokenizer.decode_list(out['recon'])
+            results['recon'] = tmp
+            # Get class prediction
+            pred = self.class_labels[int(out['class'])]
+            results['pred'] = pred
 
         return results
 
@@ -196,33 +180,3 @@ class continuous_embeddings:
         return x
     
 
-    def get_re_construction(self, sketches):
-        """returns the embedding for the given sketches
-
-        Args:
-            sketches (array-like): N sketches in the stroke-3 format
-
-        Returns:
-            array-like: the embeddings for the given sketches
-        """
-        # prepare the dataset
-        dataset = self._convert_data(sketches)
-        all_x, all_y = dataset.get_all_data_from("test")
-        re_con = []
-
-        for i in range(0, len(all_x), self.BATCH_SIZE):
-            end_idx = i + self.BATCH_SIZE if i + self.BATCH_SIZE < len(all_x) else len(all_x)
-            batch_x = all_x[i:end_idx]
-            results = self.model.predict(batch_x)
-
-            if self.IS_CONTINUOUS:
-                tmp = utils.sketch.predictions_to_sketches(results['recon'])
-            else:
-                tmp = self.model.dataset.tokenizer.decode_list(results['recon'])
-
-            if len(re_con) > 0:
-                re_con = np.concatenate((re_con, tmp))
-            else:
-                re_con = tmp
-
-        return re_con
