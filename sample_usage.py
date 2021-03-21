@@ -8,15 +8,8 @@ import os
 import pickle
 import numpy as np
 from basic_usage.sketchformer import continuous_embeddings
-import time
-import warnings
-import random
-import tensorflow as tf
+import multiprocessing as mp
 
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from matplotlib import cm
 
 # warnings.filterwarnings("ignore")
 
@@ -42,7 +35,7 @@ class Basic_Test:
         """
 
 
-    def performe_test(self, model, file_list, counter):
+    def get_embeddings(self, model, file_list, counter):
         print("Performing tests:")
         # extract sample embedding of N samples and observe the distances
         embeddings = []
@@ -57,7 +50,7 @@ class Basic_Test:
                     #temp.append(sketch)
                     #sketch = temp
                     class_name = file_name.split(".")[0]
-                    results = model.get_embeddings(sketch[1])
+                    results = model.get_embeddings(sketch)
                     embeddings.append((results['embedding'], key_id, class_name, results['pred'], results['recon'][0]))
         np.savez(self.out_directory + "/small_sample_embeddings_{}.npz".format(counter), embeddings=embeddings)
 
@@ -82,31 +75,25 @@ class Basic_Test:
             self.visualize(sketch[0][0], sketch[2])
         '''
 
-    def pre_trained_model_test(self):
+    def perform_test(self, files, counter):
         """peforme tests on the pretrained model
         """
         # obtain the pre-trained model
         sketchformer = continuous_embeddings.get_pretrained_model()
         #self.recon_embeddings(sketchformer, "./sketch_files/interpolated_embed/interp_150_contn.npz" )
-        self.performe_test(sketchformer)
-    
-    def new_model_test(self):
-        # train a new model
-        print("Training a new model")
-        MODEL_ID = "my_new_model"
-        OUT_DIR = "basic_usage/pre_trained_model"
-        sketches_x = np.concatenate((self.apples['train'][:300], self.baseball['train'][:300]))
-        sketches_y = np.concatenate((np.zeros(len(self.apples['train'])), np.ones(len(self.baseball['train']))))
-        new_model = continuous_embeddings(sketches_x, sketches_y, ['apple', 'baseball'], MODEL_ID, OUT_DIR, resume=False)
-        self.performe_test(new_model)
-
-        # using the embedding from the checkpoint
-        print("Obtain the embeddings from the stored checkpoint of the new model")
-
-        resume_model = continuous_embeddings([], [], ['apple', 'baseball'], MODEL_ID, OUT_DIR, resume=True)
-        self.performe_test(resume_model)
+        self.get_embeddings(sketchformer, files, counter)
 
 
-Basic_Test().pre_trained_model_test()
 
-#Basic_Test().new_model_test()
+if __name__ == '__main__':
+    test = Basic_Test()
+    data_files = os.listdir(test.directory)
+    batch_size = 4
+    start_pointer_ = 0
+    pool = mp.Pool(8)
+    while start_pointer_ < len(data_files):
+        file_list_ = data_files[start_pointer_:start_pointer_ + batch_size]
+        pool.apply_async(test.perform_test, args=(file_list_, start_pointer_))
+        start_pointer_ += batch_size
+    pool.close()
+    pool.join()
