@@ -120,7 +120,7 @@ class continuous_embeddings:
         for sketch in sketches_x:
             tmp.append(sketch[:2])
         std, mean = np.std(tmp), np.mean(tmp)
-
+        ''''
         # prepare the meta file for the given data
         meta_f = os.path.join(self.TARGET_DIR, "meta.npz")
         np.savez(meta_f,
@@ -143,7 +143,7 @@ class continuous_embeddings:
                     x=sketches_x,
                     y=sketches_y,
                     label_names=class_labels)
-
+        '''''
         # prepare a dataloader
         DataLoader = dataloaders.get_dataloader_by_name('stroke3-distributed')
         if self.IS_CONTINUOUS:

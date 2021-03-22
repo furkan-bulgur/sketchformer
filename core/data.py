@@ -42,14 +42,16 @@ class BaseDataLoader(object, metaclass=ABCMeta):
         self.splits = {split.name: split for split in self.splits}
 
         for s, split in self.splits.items():
+            '''
             # ignore if the split has zero data points
             if split.n_files == 0:
                 continue
             split.file_cursor = 0
             split.file_shuffle = self.reshuffle_file_indices(s, split.filepaths)
             selected_file = split.filepaths[split.file_shuffle[split.file_cursor]]
+            '''
             split.thread = threading.Thread(
-                target=self.load_next_megabatch, args=(s, selected_file))
+                target=self.load_next_megabatch, args=(s, []))
             split.thread.start()
             # debug
             # split.thread.join()

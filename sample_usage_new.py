@@ -17,8 +17,8 @@ import multiprocessing as mp
 class Basic_Test:
 
     def __init__(self):
-        self.directory = "C:/Users/user/Belgeler/IUI/IDM/all_npz/" # Directory that includes all the sketches
-        self.out_directory ="C:/Users/user/Belgeler/IUI/embeddings/"
+        self.directory = 'C:/Users/user/Belgeler/IUI/IDM' # Directory that includes all the sketches
+        self.out_directory ="./sketch_files/embeddings"
         """
         for filename in os.listdir(self.directory):
             if filename.endswith(".npz"):
@@ -35,14 +35,20 @@ class Basic_Test:
         """
 
 
-    def get_embeddings(self, model, file_list, counter):
-        print("Performing tests: {}".format(counter))
+    def get_embeddings(self, model, file_list, directory_path):
+        print("Performing tests:")
+        path = os.path.abspath(os.path.join(directory_path, os.pardir))
+        if os.path.exists(path + '/embeddings'):
+            return
+        else:
+            os.mkdir(path + '/embeddings')
         # extract sample embedding of N samples and observe the distances
         embeddings = []
+        output_path = path + '/embeddings/'
         for filename in file_list:
             if filename.endswith(".npz"):
                 file_name = filename
-                with np.load(self.directory + file_name, allow_pickle=True, encoding="latin1") as sketch:
+                with np.load(directory_path + file_name, allow_pickle=True, encoding="latin1") as sketch:
                     key_id = sketch["key_id"]
                     # Uncomment for sub stroke embeddings
                     #temp = []
@@ -52,7 +58,7 @@ class Basic_Test:
                     class_name = file_name.split(".")[0]
                     results = model.get_embeddings(sketch)
                     embeddings.append((results['embedding'], key_id, class_name, results['pred'], results['recon'][0]))
-        np.savez(self.out_directory + "/embeddings_{}.npz".format(counter), embeddings=embeddings)
+        np.savez("{}embeddings.npz".format(output_path), embeddings=embeddings)
 
 
 
@@ -75,28 +81,31 @@ class Basic_Test:
             self.visualize(sketch[0][0], sketch[2])
         '''
 
-    def perform_test(self, files, counter):
+    def perform_test(self, files, directory_path):
         """peforme tests on the pretrained model
         """
         # obtain the pre-trained model
         sketchformer = continuous_embeddings.get_pretrained_model()
         #self.recon_embeddings(sketchformer, "./sketch_files/interpolated_embed/interp_150_contn.npz" )
-        self.get_embeddings(sketchformer, files, counter)
+        self.get_embeddings(sketchformer, files, directory_path)
 
+    def find_recursive_directory(self, path):
+        for file in os.listdir(path):
+            if file == 'npz':
+                file_list_ = os.listdir(path + '/' + file + '/')
+                self.perform_test(file_list_, path + '/' + file + '/')
+            elif os.path.isdir(path+'/' + file):
+                self.find_recursive_directory(path+'/' + file)
+            else:
+                continue
 
 
 if __name__ == '__main__':
     test = Basic_Test()
-    data_files = os.listdir(test.directory)
-    batch_size = 300
-    start_pointer_ = 0
+    directory_list = os.listdir(test.directory)
     pool = mp.Pool(8)
-    while start_pointer_ < len(data_files):
-        if(start_pointer_ + batch_size) >= len(data_files):
-            file_list_ = data_files[start_pointer_:]
-        else:
-            file_list_ = data_files[start_pointer_:start_pointer_ + batch_size]
-        pool.apply_async(test.perform_test, args=(file_list_, start_pointer_))
-        start_pointer_ += batch_size
+    for directory_ in directory_list:
+        result = pool.apply_async(test.find_recursive_directory, args=(test.directory + '/' + directory_))
+        result.get()
     pool.close()
     pool.join()

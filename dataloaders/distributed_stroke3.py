@@ -3,6 +3,7 @@ import os
 import glob
 import utils
 import time
+from filelock import FileLock
 
 from core.data import BaseDataLoader, DatasetSplit
 
@@ -75,17 +76,19 @@ class DistributedStroke3DataLoader(BaseDataLoader):
             return list(range(len(data['x'])))
 
     def load_next_megabatch(self, split_name, selected_file):
-
-        loaded_dict = np.load(selected_file, allow_pickle=True)
-        resulting_data_dict = {'x': loaded_dict['x'],
-                               'y': loaded_dict['y']}
+        '''
+        with FileLock(selected_file):
+            loaded_dict = np.load(selected_file, allow_pickle=True)
+            resulting_data_dict = {'x': loaded_dict['x'],
+                                   'y': loaded_dict['y']}
 
         augment = split_name == 'train'  # should do data augmentation
         resulting_data_dict['x'] = self.preprocess(resulting_data_dict['x'],
                                                    augment=augment)
-        self.set_future_data_for_split(split_name, resulting_data_dict)
+        '''
+        self.set_future_data_for_split(split_name, selected_file)
 
-        print("[INFO] Loaded megabatch from {}".format(selected_file))
+        print("[INFO] Loaded megabatch ")
 
     def preprocess(self, data, augment=False):
         preprocessed = []
